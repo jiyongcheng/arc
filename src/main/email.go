@@ -56,7 +56,7 @@ func helloEmail(tickets []jira.Issue) []byte {
 }
 
 func sendReleaseNotesEmail(tickets []jira.Issue) {
-	request := sendgrid.GetRequest("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", "/v3/mail/send", "https://api.sendgrid.com")
+	request := sendgrid.GetRequest("", "/v3/mail/send", "https://api.sendgrid.com")
 	request.Method = "POST"
 	var Body = getReleaseNotesEmailBody(tickets)
 	request.Body = Body
@@ -94,9 +94,9 @@ func getReleaseNotesEmailBody(tickets []jira.Issue) []byte {
 	name = "Example User"
 	to := mail.NewEmail(name, address)
 	templateData := struct {
-		Notes string
+		Notes []jira.Issue
 	}{
-		Notes:notes,
+		Notes:tickets,
 	}
 	t, err := template.ParseFiles("/home/aaronji/go/arc/src/main/emailTemplate.html")
 	if err != nil {

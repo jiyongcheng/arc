@@ -10,7 +10,11 @@
 
 <p>
 
-    {{.Notes}}
+<ul>
+{{range .Notes}}
+    <li>{{.Fields.Type.Name}}</li>
+{{end}}
+</ul>
 </p>
 </body>
 
