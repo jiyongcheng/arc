@@ -8,13 +8,19 @@
 
 <h4>The current tickets are currently being pushed to staging</h4>
 
-<p>
+<p>{{.Version}}</p>
 
-<ul>
-{{range .Notes}}
-    <li>{{.Fields.Type.Name}}</li>
-{{end}}
-</ul>
+<p>
+    <ul>
+        {{range $type, $issues := .Notes}}
+            <h3>{{$type}}</h3>
+            <ul>
+                {{range $issue := $issues}}
+                    <li><a href="{{$.JiraUrl}}{{$issue.Key}}">{{$issue.Key}}</a> - {{$issue.Fields.Summary}}</li>
+                {{end}}
+            </ul>
+        {{end}}
+    </ul>
 </p>
 </body>
 

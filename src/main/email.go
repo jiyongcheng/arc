@@ -1,47 +1,60 @@
 package main
 
 import (
-	"github.com/sendgrid/sendgrid-go/helpers/mail"
-	"github.com/sendgrid/sendgrid-go"
-			"fmt"
-		"html/template"
 	"bytes"
+	"fmt"
 	"github.com/andygrunwald/go-jira"
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
+	"html/template"
+	"os"
+	"path/filepath"
+	"log"
+	"github.com/tkanos/gonfig"
 )
 
-func helloEmail(tickets []jira.Issue) []byte {
+type Configuration struct {
+	SENDGRID_API_KEY string
+	EMAIL_END_POINT string
+	EMAIL_HOST string
+	EMAIL_REQUEST_METHOD string
+	EMAIL_FROM string
+	EMAIL_TO []string
+	EMAIL_TEMPLATE_PATH string
+	EMAIL_SUBJECT string
+	JIRA_URL string
+}
+
+func sendReleaseNotesEmail(tickets []jira.Issue) []byte {
+	cwd, _ := os.Getwd()
+	configuration := Configuration{}
+	err := gonfig.GetConf(filepath.Join(cwd, "./config/development.json"), &configuration)
+	ReleaseVersion := "v2018.51"
+	Subject := fmt.Sprintf(configuration.EMAIL_SUBJECT, ReleaseVersion)
 	issues := make(map[string][]jira.Issue)
-	for _,ticket :=range tickets {
+	for _, ticket := range tickets {
 		issueType := ticket.Fields.Type.Name
 		issues[issueType] = append(issues[issueType], ticket)
 	}
 
-	notes := ""
-	for key,ticket := range issues {
-		notes = notes + key + "\n"
-		for _,issue := range ticket {
-			notes = notes + `<a href=https://formcorp.atlassian.net/browse/` + issue.Key + `>`+ issue.Key + `</a>`
-			notes = notes + "-" + issue.Fields.Summary + "\n"
-		}
+	m := mail.NewV3Mail()
+
+	from := mail.NewEmail("", configuration.EMAIL_FROM)
+	m.SetFrom(from)
+
+	templateData := struct {
+		Notes   map[string][]jira.Issue
+		JiraUrl string
+		Version string
+	}{
+		Notes:   issues,
+		JiraUrl: configuration.JIRA_URL,
+		Version: ReleaseVersion,
 	}
 
-	address := "aaronji@transformd.com"
-	name := "Example User"
-	from := mail.NewEmail(name, address)
-	subject := "Hello World"
-	address = "aaronji@transformd.com"
-	name = "Example User"
-	to := mail.NewEmail(name, address)
-	templateData := struct {
-		Name string
-		URL  string
-		Notes string
-	}{
-		Name: "Dhanush",
-		URL:  "http://geektrust.in",
-		Notes:notes,
-	}
-	t, err := template.ParseFiles("/home/aaronji/go/arc/src/main/emailTemplate.html")
+	path := filepath.Join(cwd, configuration.EMAIL_TEMPLATE_PATH)
+
+	t, err := template.ParseFiles(path)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -51,63 +64,27 @@ func helloEmail(tickets []jira.Issue) []byte {
 	}
 
 	content := mail.NewContent("text/html", buf.String())
-	m := mail.NewV3MailInit(from, subject, to, content)
-	return mail.GetRequestBody(m)
-}
+	m.AddContent(content)
 
-func sendReleaseNotesEmail(tickets []jira.Issue) {
-	request := sendgrid.GetRequest("", "/v3/mail/send", "https://api.sendgrid.com")
+	personalization := mail.NewPersonalization()
+
+	for _,to := range configuration.EMAIL_TO {
+		personalization.AddTos(mail.NewEmail("", to))
+	}
+
+	personalization.Subject = Subject
+
+	m.AddPersonalizations(personalization)
+
+	request := sendgrid.GetRequest(configuration.SENDGRID_API_KEY, configuration.EMAIL_END_POINT, configuration.EMAIL_HOST)
 	request.Method = "POST"
-	var Body = getReleaseNotesEmailBody(tickets)
-	request.Body = Body
+	request.Body = mail.GetRequestBody(m)
 	response, err := sendgrid.API(request)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	} else {
-		fmt.Println(response.StatusCode)
-		fmt.Println(response.Body)
-		fmt.Println(response.Headers)
-	}
-}
-
-func getReleaseNotesEmailBody(tickets []jira.Issue) []byte {
-	issues := make(map[string][]jira.Issue)
-	for _,ticket :=range tickets {
-		issueType := ticket.Fields.Type.Name
-		issues[issueType] = append(issues[issueType], ticket)
+		fmt.Sprintf("Email sent status: %d", response.StatusCode)
 	}
 
-	notes := ""
-	for key,ticket := range issues {
-		notes = notes + key + "\n"
-		for _,issue := range ticket {
-			notes = notes + `<a href=https://formcorp.atlassian.net/browse/` + issue.Key + `>`+ issue.Key + `</a>`
-			notes = notes + "-" + issue.Fields.Summary + "\n"
-		}
-	}
-
-	address := "aaronji@transformd.com"
-	name := "Example User"
-	from := mail.NewEmail(name, address)
-	subject := "Hello World"
-	address = "aaronji@transformd.com"
-	name = "Example User"
-	to := mail.NewEmail(name, address)
-	templateData := struct {
-		Notes []jira.Issue
-	}{
-		Notes:tickets,
-	}
-	t, err := template.ParseFiles("/home/aaronji/go/arc/src/main/emailTemplate.html")
-	if err != nil {
-		fmt.Println(err)
-	}
-	buf := new(bytes.Buffer)
-	if err = t.Execute(buf, templateData); err != nil {
-		fmt.Println(err)
-	}
-
-	content := mail.NewContent("text/html", buf.String())
-	m := mail.NewV3MailInit(from, subject, to, content)
-	return mail.GetRequestBody(m)
+	return nil
 }
