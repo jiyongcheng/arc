@@ -3,9 +3,9 @@
   "EMAIL_END_POINT" : "/v3/mail/send",
   "EMAIL_HOST":"https://api.sendgrid.com",
   "EMAIL_REQUEST_METHOD":"POST",
-  "EMAIL_FROM":"aaronji@transformd.com",
-  "EMAIL_TO":["aaronji@transformd.com","gallen83@gmail.com"],
+  "EMAIL_FROM":"",
+  "EMAIL_TO":["gallen83@gmail.com"],
   "EMAIL_TEMPLATE_PATH":"./main/emailTemplate.html",
-  "EMAIL_SUBJECT":"Transform %s major release notes",
-  "JIRA_URL":"https://formcorp.atlassian.net/browse/"
+  "EMAIL_SUBJECT":"",
+  "JIRA_URL":""
 }
